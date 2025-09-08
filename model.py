@@ -131,36 +131,36 @@ class Encoder(nn.Module):
             nn.Conv2d(in_channels, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
+            # nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(128),
+            # nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),  # Downsample -> [128, H/2, W/2]
 
             # Block 2: 128 -> 256
             nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            # nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(256),
+            # nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),  # Downsample -> [256, H/4, W/4]
 
             # Block 3: 256 -> 512
             nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
+            # nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(512),
+            # nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),  # Downsample -> [512, H/8, W/8]
 
             # Block 4: 512 -> 1024
             nn.Conv2d(512, 1024, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(1024),
             nn.ReLU(),
-            nn.Conv2d(1024, 1024, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(1024),
-            nn.ReLU(),
+            # nn.Conv2d(1024, 1024, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(1024),
+            # nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),  # Downsample -> [1024, H/16, W/16]
         )
 
@@ -197,76 +197,76 @@ class Decoder(nn.Module):
         #     nn.Sigmoid()  # Output values between 0 and 1
         # )
 
-        self.deconv = nn.Sequential(
-            # Block 1: 512 -> 256
-            nn.Upsample(scale_factor=2, mode='nearest'),  # [512, H*2, W*2]
-            nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-
-            # Block 2: 256 -> 128
-            nn.Upsample(scale_factor=2, mode='nearest'),
-            nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-
-            # Block 3: 128 -> 64
-            nn.Upsample(scale_factor=2, mode='nearest'),
-            nn.Conv2d(128, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-
-            # Block 4: 64 -> out_channels
-            nn.Upsample(size=(50, 50), mode='nearest'),
-            nn.Conv2d(64, out_channels, kernel_size=3, stride=1, padding=1),
-            nn.Sigmoid(),  # Output values between 0 and 1
-        )
-
         # self.deconv = nn.Sequential(
-        #     # Block 1: 1024 -> 512
-        #     nn.ConvTranspose2d(512, 512, kernel_size=2, stride=2),  # Upsample
-        #     nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-        #     nn.BatchNorm2d(512),
-        #     nn.ReLU(),
-        #     nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-        #     nn.BatchNorm2d(512),
-        #     nn.ReLU(),
-
-        #     # Block 2: 512 -> 256
-        #     nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2),
-        #     nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+        #     # Block 1: 512 -> 256
+        #     nn.Upsample(scale_factor=2, mode='nearest'),  # [512, H*2, W*2]
+        #     nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1),
         #     nn.BatchNorm2d(256),
         #     nn.ReLU(),
         #     nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
         #     nn.BatchNorm2d(256),
         #     nn.ReLU(),
 
-        #     # Block 3: 256 -> 128
-        #     nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2),
-        #     nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+        #     # Block 2: 256 -> 128
+        #     nn.Upsample(scale_factor=2, mode='nearest'),
+        #     nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
         #     nn.BatchNorm2d(128),
         #     nn.ReLU(),
         #     nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
         #     nn.BatchNorm2d(128),
         #     nn.ReLU(),
 
-        #     # Block 4: 128 -> out_channels
-        #     nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=0),  # Upsample from 24 → 50
+        #     # Block 3: 128 -> 64
+        #     nn.Upsample(scale_factor=2, mode='nearest'),
+        #     nn.Conv2d(128, 64, kernel_size=3, stride=1, padding=1),
+        #     nn.BatchNorm2d(64),
+        #     nn.ReLU(),
         #     nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
         #     nn.BatchNorm2d(64),
         #     nn.ReLU(),
+
+        #     # Block 4: 64 -> out_channels
+        #     nn.Upsample(size=(50, 50), mode='nearest'),
         #     nn.Conv2d(64, out_channels, kernel_size=3, stride=1, padding=1),
-        #     nn.Sigmoid()
-        #     )
+        #     nn.Sigmoid(),  # Output values between 0 and 1
+        # )
+
+        self.deconv = nn.Sequential(
+            # Block 1: 1024 -> 512
+            nn.ConvTranspose2d(512, 512, kernel_size=2, stride=2),  # Upsample
+            nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
+            # nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(512),
+            # nn.ReLU(),
+
+            # Block 2: 512 -> 256
+            nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2),
+            nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+            # nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(256),
+            # nn.ReLU(),
+
+            # Block 3: 256 -> 128
+            nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2),
+            nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
+            # nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
+            # nn.BatchNorm2d(128),
+            # nn.ReLU(),
+
+            # Block 4: 128 -> out_channels
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=0),  # Upsample from 24 → 50
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, out_channels, kernel_size=3, stride=1, padding=1),
+            nn.Sigmoid()
+            )
 
     def forward(self, z):
         x = self.fc(z)
@@ -281,6 +281,7 @@ class ConvVAE(nn.Module):
         super(ConvVAE, self).__init__()
         self.encoder = Encoder(in_channels, latent_dim)
         self.decoder = Decoder(in_channels, latent_dim)
+        # self.back_decoder = Decoder(in_channels, latent_dim)
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -290,8 +291,11 @@ class ConvVAE(nn.Module):
     def forward(self, x):
         mu, logvar = self.encoder(x)
         z = self.reparameterize(mu, logvar)
-        recon_x = self.decoder(z)
-        return recon_x, mu, logvar
+        recon_sig = self.decoder(z)
+        return recon_sig, mu, logvar
+        # recon_back = self.back_decoder(z)
+        # return recon_sig, recon_back, mu, logvar
+        
 
 # # model = ConvVAE(in_channels=20, latent_dim=128)
 # # x = torch.randn(8, 20, 50, 50)  # batch of 8
