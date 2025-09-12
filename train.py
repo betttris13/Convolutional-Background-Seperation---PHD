@@ -49,15 +49,16 @@ def train(model, model_params, training_data):
     # ---------- Dataloader ----------
     obs = training_data["obs"]
     sig = training_data["sig"]
+    back = training_data["back"]
     params = training_data["params"]
 
     obs = torch.from_numpy(obs).type(torch.float)
     sig = torch.from_numpy(sig).type(torch.float)
-    # back = torch.from_numpy(back).type(torch.float)
+    back = torch.from_numpy(back).type(torch.float)
     params = torch.from_numpy(params).type(torch.float)
 
-    data_set = TensorDataset(obs, sig, params)  # Midify to alsop have background
-    # data_set = TensorDataset(obs, sig, back, params)  # Midify to alsop have background
+    # data_set = TensorDataset(obs, sig, params)  # Midify to alsop have background
+    data_set = TensorDataset(obs, sig, back, params)  # Midify to alsop have background
     train_loader = DataLoader(data_set, batch_size=model_params["batch_size"], shuffle=True)
 
     # ---------- Training Loop ----------
@@ -70,17 +71,17 @@ def train(model, model_params, training_data):
         train_loss = 0
         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}")
         
-        for input_img, target_img, target_params in progress_bar:
+        for input_img, target_img, target_back, target_params in progress_bar:
         # for input_img, target_img, target_back, target_params in progress_bar:
             input_img = input_img.to(device)
             target_img = target_img.to(device)
-            # target_back = target_back.to(device)
+            target_back = target_back.to(device)
             optimizer.zero_grad()
 
-            recon_x, mu, logvar = model(input_img)
-            # recon_sig, recon_back, mu, logvar = model(input_img)
-            loss = vae_loss(recon_x, target_img, mu, logvar, alpha, beta)
-            # loss = vae_loss(recon_sig, target_img, mu, logvar, alpha, beta) + vae_loss(recon_back, target_back, mu, logvar, alpha, beta)
+            # recon_x, mu, logvar = model(input_img)
+            recon_sig, recon_back, mu, logvar = model(input_img)
+            # loss = vae_loss(recon_x, target_img, mu, logvar, alpha, beta)
+            loss = vae_loss(recon_sig, target_img, mu, logvar, alpha, beta) + vae_loss(recon_back, target_back, mu, logvar, alpha, beta)
             loss.backward()
             optimizer.step()
 

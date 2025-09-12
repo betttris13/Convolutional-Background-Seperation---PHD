@@ -19,6 +19,8 @@ import os
 from torch.utils.data import DataLoader, TensorDataset
 from torchvision import transforms
 from tqdm import tqdm
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing as mp
 
 import data_gen
 from model import ConvVAE
@@ -37,6 +39,49 @@ def fit_brightest(img):
         fit.append(np.unravel_index(np.argmax(img[i]), img[i].shape))
     fit = np.nanmean(fit, axis=(0))
     return fit
+
+# def _calc_COM_single(img):
+#     E, X, Y = img.shape
+#     X_COM = np.zeros(E)
+#     Y_COM = np.zeros(E)
+#     M = np.zeros(E)
+
+#     for x in range(X):
+#         for y in range(Y):
+#             for e in range(E):
+#                 m = img[e, x, y]
+#                 X_COM[e] += x * m
+#                 Y_COM[e] += y * m
+#                 M[e] += m
+
+#     M[M == 0] = 1e-8
+#     return np.mean(X_COM / M), np.mean(Y_COM / M)
+
+# def calc_COM(imgs, num_workers=16, show_progress=True):
+#     """
+#     Calculate center of mass for images in parallel.
+
+#     Parameters:
+#     - imgs: numpy array (N, E, X, Y)
+#     - num_workers: number of parallel processes
+#     - show_progress: whether to display tqdm progress bar
+
+#     Returns:
+#     - X_COM_mean: np.ndarray (N,)
+#     - Y_COM_mean: np.ndarray (N,)
+#     """
+#     N = imgs.shape[0]
+#     X_COM_mean = np.zeros(N)
+#     Y_COM_mean = np.zeros(N)
+
+#     with ProcessPoolExecutor(max_workers=num_workers) as executor:
+#         futures = [executor.submit(_calc_COM_single, imgs[n]) for n in range(N)]
+#         for i, future in enumerate(tqdm(as_completed(futures), total=N, disable=not show_progress, desc="Computing COM")):
+#             x_com, y_com = future.result()
+#             X_COM_mean[i] = x_com
+#             Y_COM_mean[i] = y_com
+
+#     return X_COM_mean, Y_COM_mean
 
 def calc_COM(imgs):
         N, E, X, Y = imgs.shape
@@ -64,37 +109,96 @@ def calc_COM(imgs):
 
         return X_COM_mean, Y_COM_mean
 
+def gaussian_2d(X, Y, r, x0, y0):
+    ax = np.linspace(0, X-1, X)
+    ay = np.linspace(0, Y-1, Y)
+    xx, yy = np.meshgrid(ax, ay)
+    
+    gaussian = np.exp(-((yy-x0)**2 + (xx-y0)**2) / (2 * r**2)) #note inverted xy
+    gaussian /= np.max(gaussian)
+
+    return gaussian
+
+def calc_squares(A, B):
+    mask = A != 0
+    squared_diff = (A - B)**2
+    # squares = np.sum(squared_diff)
+    result = np.where(mask, squared_diff, 0)
+    squares = np.sum(result)
+    return squares
+
 def radius(imgs, X_mean, Y_mean):
     N, E, X, Y = imgs.shape
 
     stds = []
 
     for n in tqdm(range(N)):
-        stds_X = []
-        stds_Y = []
+        img  = np.zeros((X, Y))
         for e in range(E):
-            for y in range(Y):
-                temp = 0
-                for x in range(X):
-                    temp += ((x - X_mean[n])**2) * imgs[n,e,x,y]
+            img += (imgs[n, e]/np.max(imgs[n, e]))
+        
+        img /= np.max(img)
+        
+        step = 0.01
+        std = 0
+        start = 1
+        stop = 4
+        min = np.inf
+        a = []
+        while abs(step) >= 0.0001:
+            pointer = start
+            while pointer <= stop:
+                G = gaussian_2d(X, Y, pointer, X_mean[n], Y_mean[n])
+                squares = calc_squares(img, G)
+                a.append([pointer, squares])
+                if squares < min:
+                    min = squares
+                    std = pointer
+                pointer += step
                 
-                if temp > 0:
-                    stds_X.append(np.sqrt(temp))
-            for x in range(X):
-                temp = 0
-                for y in range(Y):
-                    temp += ((y - Y_mean[n])**2) * imgs[n,e,x,y]
-                
-                if temp > 0:
-                    stds_Y.append(np.sqrt(temp))
+            start = std - step
+            stop = std + step
+            step /= 10
+            if start < 1:
+                start = 1
+            if stop > 4:
+                stop = 4
 
-
-        std_X = np.mean(stds_X)      
-        std_Y = np.mean(stds_Y)
-
-        stds.append((std_X+std_Y)/2)
+        stds.append(std)
 
     return stds
+
+# def radius(imgs, X_mean, Y_mean):
+#     N, E, X, Y = imgs.shape
+
+#     stds = []
+
+#     for n in tqdm(range(N)):
+#         stds_X = []
+#         stds_Y = []
+#         for e in range(E):
+#             for y in range(Y):
+#                 temp = 0
+#                 for x in range(X):
+#                     temp += ((x - X_mean[n])**2) * imgs[n,e,x,y]
+                
+#                 if temp > 0:
+#                     stds_X.append(np.sqrt(temp))
+#             for x in range(X):
+#                 temp = 0
+#                 for y in range(Y):
+#                     temp += ((y - Y_mean[n])**2) * imgs[n,e,x,y]
+                
+#                 if temp > 0:
+#                     stds_Y.append(np.sqrt(temp))
+
+
+#         std_X = np.mean(stds_X)      
+#         std_Y = np.mean(stds_Y)
+
+#         stds.append((std_X+std_Y)/2)
+
+#     return stds
 
 
 def test_single(model, model_params, training_data, testing_data):
@@ -123,29 +227,34 @@ def test_single(model, model_params, training_data, testing_data):
     progress_bar = tqdm(train_loader, desc="Testing")
 
     sig_out_list = []
+    back_out_list = []
     for input_img, target_img, target_params in progress_bar:
-            input_img = input_img.to(device)
-            target_img = target_img.to(device)
-            
+        input_img = input_img.to(device)
+        target_img = target_img.to(device)
+        
 
-            sig_out_t, _, _ = model(input_img)
-            sig_out_list.append(sig_out_t.detach().cpu())
+        # sig_out_t, _, _ = model(input_img)
+        sig_out_t, back_out_t, _, _ = model(input_img)
+        sig_out_list.append(sig_out_t.detach().cpu())
+        back_out_list.append(back_out_t.detach().cpu())
 
 
     sig_out = torch.cat(sig_out_list, dim=0)
-    val_sig_out, _, _  = model.forward(val_obs.to(device))
+    back_out = torch.cat(back_out_list, dim=0)
+    # val_sig_out, _, _  = model.forward(val_obs.to(device))
+    val_sig_out, val_back_out, _, _  = model.forward(val_obs.to(device))
 
     obs = obs.numpy()
     sig = sig.numpy()
     back = back.numpy()
     params = params.numpy()
     sig_out= sig_out.cpu().detach().numpy()
-    sig_out = sig_out / sig_out.max(axis=(2, 3), keepdims=True)
-    # back_out = back_out.cpu().detach().numpy()
+    # sig_out = sig_out / sig_out.max(axis=(2, 3), keepdims=True)
+    back_out = back_out.cpu().detach().numpy()
 
     val_sig_out= val_sig_out.cpu().detach().numpy()
-    val_sig_out = val_sig_out / val_sig_out.max(axis=(2, 3), keepdims=True)
-    # val_back_out = val_back_out.cpu().detach().numpy()
+    # val_sig_out = val_sig_out / val_sig_out.max(axis=(2, 3), keepdims=True)
+    val_back_out = val_back_out.cpu().detach().numpy()
 
 
     # print(losses)
@@ -244,7 +353,7 @@ def test_single(model, model_params, training_data, testing_data):
     test_output = {
         "obs": training_data["obs"], 
         "sig": sig_out, 
-        "back": _,
+        "back":  back_out,
         "params": training_data["params"],
         "events": training_data["events"],
         "type": "Results",
@@ -254,7 +363,7 @@ def test_single(model, model_params, training_data, testing_data):
     val_output = {
         "obs": testing_data["obs"], 
         "sig": val_sig_out, 
-        "back": _,
+        "back": val_back_out,
         "params": testing_data["params"],
         "events": testing_data["events"],
         "type": "Results",
@@ -263,3 +372,9 @@ def test_single(model, model_params, training_data, testing_data):
 
 
     return results_titles, results, val_results, test_output, val_output
+
+if __name__ == "__main__":
+    # G = gaussian_2d(50,50,3.5,25,25)
+    # plt.imshow(G)
+    # plt.show()
+    print(0)

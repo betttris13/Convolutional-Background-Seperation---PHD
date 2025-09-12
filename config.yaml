@@ -1,6 +1,6 @@
 model_params:
   SB: 0.8
-  alpha: 0.05
+  alpha: 0.05 #0.05
   batch_size: 64
   beta: 0.0
   debug: false

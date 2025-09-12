@@ -281,7 +281,7 @@ class ConvVAE(nn.Module):
         super(ConvVAE, self).__init__()
         self.encoder = Encoder(in_channels, latent_dim)
         self.decoder = Decoder(in_channels, latent_dim)
-        # self.back_decoder = Decoder(in_channels, latent_dim)
+        self.back_decoder = Decoder(in_channels, latent_dim)
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -292,9 +292,9 @@ class ConvVAE(nn.Module):
         mu, logvar = self.encoder(x)
         z = self.reparameterize(mu, logvar)
         recon_sig = self.decoder(z)
-        return recon_sig, mu, logvar
-        # recon_back = self.back_decoder(z)
-        # return recon_sig, recon_back, mu, logvar
+        # return recon_sig, mu, logvar
+        recon_back = self.back_decoder(z)
+        return recon_sig, recon_back, mu, logvar
         
 
 # # model = ConvVAE(in_channels=20, latent_dim=128)

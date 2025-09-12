@@ -109,5 +109,6 @@ try:
 
     webhook.send("Hey look everyone, Lettie's code finished. She actually didn't fuck up for one...")
 
-except:
+except Exception as e: 
+    print(e)
     webhook.send("WARNING: Code failed to finish.")
