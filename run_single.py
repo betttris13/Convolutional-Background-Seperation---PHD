@@ -83,32 +83,50 @@ if os.path.isdir(dir) == False:
 model = ConvVAE(in_channels=20, latent_dim=model_params["latent_dim"]).to(device)
 
 webhook.send("https://tenor.com/view/ah-shit-here-we-go-gif-15190379")
-try:
+# try:
+if model_params["data"] == -1:
     webhook.send("Hey Lettie, your code is generating data.")
     training_data = data_gen.make_single_set_realistic(model_params["batch_size"], model_params["nbatch"], (20,50,50), model_params["SB"])
     testing_data = data_gen.make_single_set_realistic(model_params["batch_size"], 1, (20,50,50), model_params["SB"])
+    with open(f'{dir}/training_data.pkl', 'wb') as f:
+        pickle.dump(training_data, f)
 
-    webhook.send("And now its training.")
-    model, train_loss = train.train(model, model_params, training_data)
-    torch.save(model.state_dict(), dir + '/model_weights.pth')
+    with open(f'{dir}/val_data.pkl', 'wb') as f:
+        pickle.dump(testing_data, f)
+else:
+    with open(f'{model_params["data"]}/training_data.pkl', 'rb') as f:
+        training_data = pickle.load(f)
 
-    # If running in debig mode load model. This allows for interupted runs to be analysed or runs to skip training etc. Should manually override dir variable to do so.
-    if model_params["debug"]:
-        model.load_state_dict(torch.load(dir + 'model_weights.pth'))
+    with open(f'{model_params["data"]}/val_data.pkl', 'rb') as f:
+        testing_data = pickle.load(f)
 
-    webhook.send("Its running tests now, suprised it got this far...")
-    results_titles, results, val_results, test_output, val_output = test.test_single(model, model_params, training_data, testing_data)
+webhook.send("And now its training.")
+model, train_loss = train.train(model, model_params, training_data)
+torch.save(model.state_dict(), dir + '/model_weights.pth')
 
-    df = pd.DataFrame(results, columns = results_titles)
-    df.to_csv(dir +  "/results.csv")
-    df = pd.DataFrame(val_results, columns = results_titles)
-    df.to_csv(dir +  "/val_results.csv")
+# If running in debug mode load model. This allows for interrupted runs to be analysed or runs to skip training etc. Should manually override dir variable to do so.
+if model_params["debug"]:
+    model.load_state_dict(torch.load(dir + 'model_weights.pth'))
 
-    webhook.send("Hey it made it to analysis, maybe you didn't fuck up this time?")
-    analyse.run_single(model_params, train_loss, training_data, testing_data, test_output, val_output, results_titles, results, val_results, dir)
+webhook.send("Its running tests now, surprised it got this far...")
+results_titles, results, val_results, test_output, val_output, rep_test_output, rep_val_output = test.test_single(model, model_params, training_data, testing_data)
 
-    webhook.send("Hey look everyone, Lettie's code finished. She actually didn't fuck up for one...")
+df = pd.DataFrame(results, columns = results_titles)
+df.to_csv(dir +  "/results.csv")
+df = pd.DataFrame(val_results, columns = results_titles)
+df.to_csv(dir +  "/val_results.csv")
 
-except Exception as e: 
-    print(e)
-    webhook.send("WARNING: Code failed to finish.")
+with open(f'{dir}/test_output.pkl', 'wb') as f:
+    pickle.dump(test_output, f)
+
+with open(f'{dir}/val_output.pkl', 'wb') as f:
+    pickle.dump(val_output, f)
+
+webhook.send("Hey it made it to analysis, maybe you didn't fuck up this time?")
+analyse.run_single(model_params, train_loss, training_data, testing_data, test_output, val_output, rep_test_output, rep_val_output, results_titles, results, val_results, dir)
+
+webhook.send("Hey look everyone, Lettie's code finished. She actually didn't fuck up for one...")
+
+# except Exception as e: 
+#     print(e)
+#     webhook.send("WARNING: Code failed to finish.")

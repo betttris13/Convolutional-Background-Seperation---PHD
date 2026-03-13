@@ -252,22 +252,37 @@ def test_single(model, model_params, training_data, testing_data):
     # sig_out = sig_out / sig_out.max(axis=(2, 3), keepdims=True)
     back_out = back_out.cpu().detach().numpy()
 
+    val_obs = val_obs.numpy()
     val_sig_out= val_sig_out.cpu().detach().numpy()
     # val_sig_out = val_sig_out / val_sig_out.max(axis=(2, 3), keepdims=True)
     val_back_out = val_back_out.cpu().detach().numpy()
 
+
+
+    rep_obs = np.repeat(obs[0][np.newaxis, ...], model_params["batch_size"], axis=0)
+    rep_sig_out, rep_back_out, _, _  = model.forward(torch.from_numpy(rep_obs).to(device))
+    rep_sig_out= rep_sig_out.cpu().detach().numpy()
+    rep_back_out = rep_back_out.cpu().detach().numpy()
+
+
+    rep_val_obs = np.repeat(val_obs[0][np.newaxis, ...], model_params["batch_size"], axis=0)
+    rep_val_sig_out, rep_val_back_out, _, _  = model.forward(torch.from_numpy(rep_val_obs).to(device))
+    rep_val_sig_out= rep_val_sig_out.cpu().detach().numpy()
+    rep_val_back_out = rep_val_back_out.cpu().detach().numpy()
 
     # print(losses)
     print("\nCalculating COM...")
 
     print("1/4")
     X_COM_mean, Y_COM_mean = calc_COM(sig_out)
+    rep_X_COM_mean, rep_Y_COM_mean = calc_COM(rep_sig_out)
 
     print("2/4")
     sig_X_COM_mean, sig_Y_COM_mean = calc_COM(sig)
 
     print("3/4")
     val_X_COM_mean, val_Y_COM_mean = calc_COM(val_sig_out)
+    rep_val_X_COM_mean, rep_val_Y_COM_mean = calc_COM(rep_val_sig_out)
 
     print("4/4")
     val_sig_X_COM_mean, val_sig_Y_COM_mean = calc_COM(val_sig)
@@ -300,8 +315,10 @@ def test_single(model, model_params, training_data, testing_data):
 
     stds_sig = radius(sig, sig_X_COM_mean, sig_Y_COM_mean)
     stds_out = radius(sig_out, sig_X_COM_mean, sig_Y_COM_mean)
+    rep_stds_out = radius(rep_sig_out, rep_X_COM_mean, rep_X_COM_mean)
     val_stds_sig = radius(val_sig, val_sig_X_COM_mean, val_sig_Y_COM_mean)
     val_stds_out = radius(val_sig_out, val_sig_X_COM_mean, val_sig_Y_COM_mean)
+    rep_val_stds_out = radius(rep_val_sig_out, rep_val_X_COM_mean, rep_val_X_COM_mean)
 
     print(stds_sig[0], params[0])
     print(stds_out[0], params[0])
@@ -370,8 +387,27 @@ def test_single(model, model_params, training_data, testing_data):
         "shape": testing_data["shape"]
     }
 
+    rep_test_output = {
+        "obs": _, 
+        "sig": rep_sig_out, 
+        "back":  rep_back_out,
+        "params": _,
+        "events": _,
+        "type": "Rep",
+        "shape": _
+    }
 
-    return results_titles, results, val_results, test_output, val_output
+    rep_val_output = {
+        "obs": _, 
+        "sig": rep_val_sig_out, 
+        "back":  rep_val_back_out,
+        "params": _,
+        "events": _,
+        "type": "Rep",
+        "shape": _
+    }
+
+    return results_titles, results, val_results, test_output, val_output, rep_test_output, rep_val_output
 
 if __name__ == "__main__":
     # G = gaussian_2d(50,50,3.5,25,25)

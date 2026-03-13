@@ -57,8 +57,8 @@ def train(model, model_params, training_data):
     back = torch.from_numpy(back).type(torch.float)
     params = torch.from_numpy(params).type(torch.float)
 
-    # data_set = TensorDataset(obs, sig, params)  # Midify to alsop have background
-    data_set = TensorDataset(obs, sig, back, params)  # Midify to alsop have background
+    # data_set = TensorDataset(obs, sig, params)
+    data_set = TensorDataset(obs, sig, back, params)
     train_loader = DataLoader(data_set, batch_size=model_params["batch_size"], shuffle=True)
 
     # ---------- Training Loop ----------
@@ -73,15 +73,40 @@ def train(model, model_params, training_data):
         
         for input_img, target_img, target_back, target_params in progress_bar:
         # for input_img, target_img, target_back, target_params in progress_bar:
-            input_img = input_img.to(device)
-            target_img = target_img.to(device)
-            target_back = target_back.to(device)
+            transform_type = np.random.choice(["none", "transpose", "rot90", "rot180", "rot270"])
+
+            input_img_m = input_img.clone()
+            target_img_m = target_img.clone()
+            target_back_m = target_back.clone()
+
+            if transform_type == "transpose":
+                input_img_m = input_img_m.transpose(2, 3)
+                target_img_m = target_img_m.transpose(2, 3)
+                target_back_m = target_back_m.transpose(2, 3)
+            elif transform_type == "rot90":
+                input_img_m = torch.rot90(input_img_m, k=1, dims=(2, 3))
+                target_img_m = torch.rot90(target_img_m, k=1, dims=(2, 3))
+                target_back_m = torch.rot90(target_back_m, k=1, dims=(2, 3))
+            elif transform_type == "rot180":
+                input_img_m = torch.rot90(input_img_m, k=2, dims=(2, 3))
+                target_img_m = torch.rot90(target_img_m, k=2, dims=(2, 3))
+                target_back_m = torch.rot90(target_back_m, k=2, dims=(2, 3))
+            elif transform_type == "rot270":
+                input_img_m = torch.rot90(input_img_m, k=3, dims=(2, 3))
+                target_img_m = torch.rot90(target_img_m, k=3, dims=(2, 3))
+                target_back_m = torch.rot90(target_back_m, k=3, dims=(2, 3))
+            # else 'none': do nothing
+
+            input_img_m = input_img_m.to(device)
+            target_img_m = target_img_m.to(device)
+            target_back_m = target_back_m.to(device)
+
             optimizer.zero_grad()
 
             # recon_x, mu, logvar = model(input_img)
-            recon_sig, recon_back, mu, logvar = model(input_img)
+            recon_sig, recon_back, mu, logvar = model(input_img_m)
             # loss = vae_loss(recon_x, target_img, mu, logvar, alpha, beta)
-            loss = vae_loss(recon_sig, target_img, mu, logvar, alpha, beta) + vae_loss(recon_back, target_back, mu, logvar, alpha, beta)
+            loss = vae_loss(recon_sig, target_img_m, mu, logvar, alpha, beta) + vae_loss(recon_back, target_back_m, mu, logvar, alpha, beta)
             loss.backward()
             optimizer.step()
 
